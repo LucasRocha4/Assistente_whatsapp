@@ -1,50 +1,63 @@
-from fastapi import Request
-from db_config.db_path import get_connection
+import logging
 import sqlite3
-import logging 
+from db_config.db_path import get_connection
 
 logger = logging.getLogger(__name__)
 
-class tratamento_contatos:
-    def __init__(self):
-        pass
 
-    async def salvar_contato(self, request: Request):
-        # tratativa do contato
-        data = await request.json()
-        if not data.get("Chat"):
-            return {"sucesso": False, "mensagem": "Campo 'Chat' é obrigatório"}
-        
-        contato = str(data.get("Chat"))[:str(data.get("Chat")).find("@")]
+class TratamentoContatos:
+    def salvar_contato(self, chat: str) -> dict:
+        if not chat:
+            return {"sucesso": False, "mensagem": "Campo 'chat' é obrigatório"}
 
-        # busca no db
+        contato = chat.split("@")[0]
+        conexao = None
         try:
-            conexao      = get_connection()
-            cursor       = conexao.cursor()
-            cursor.execute("SELECT * FROM contatos WHERE contato = ?", (contato,))
-            resultado    = cursor.fetchone()
-
-            if resultado:
-                return {"sucesso": False, "mensagem": "contato já existe"}
-            
-            cursor.execute("INSERT INTO contatos (contato) VALUES (?)", (contato,))
+            conexao = get_connection()
+            cursor = conexao.cursor()
+            cursor.execute("INSERT OR IGNORE INTO contatos (numero) VALUES (?)", (contato,))
             conexao.commit()
+            if cursor.rowcount == 0:
+                return {"sucesso": False, "mensagem": "contato já existe"}
             return {"sucesso": True, "mensagem": "contato salvo"}
-        
-        except sqlite3.Error as e:
-            logger.exception(f"Erro ao salvar contato: {e}")
-            return {"sucesso": False, "mensagem": f"Erro ao salvar contato."}
-
+        except sqlite3.Error:
+            logger.exception("Erro ao salvar contato")
+            return {"sucesso": False, "mensagem": "Erro ao salvar contato"}
         finally:
             if conexao:
                 conexao.close()
-            else:
-                logger.warning("Conexão não estava aberta ao tentar fechar.")
-        
-        # retornar True se salvo com sucesso, False caso contrário
 
+    def buscar_contato(self, numero: str) -> dict:
+        conexao = None
+        try:
+            conexao = get_connection()
+            conexao.row_factory = sqlite3.Row
+            cursor = conexao.cursor()
+            cursor.execute("SELECT * FROM contatos WHERE numero = ?", (numero,))
+            row = cursor.fetchone()
+            if row is None:
+                return {"sucesso": False, "mensagem": "Contato não encontrado"}
+            return {"sucesso": True, "contato": dict(row)}
+        except sqlite3.Error:
+            logger.exception("Erro ao buscar contato")
+            return {"sucesso": False, "mensagem": "Erro ao buscar contato"}
+        finally:
+            if conexao:
+                conexao.close()
 
-    def buscar_contato(self, contato_id):
-        # Lógica para buscar um contato pelo ID
-        # Retornar os dados do contato ou None se não encontrado
-        pass
+    def verificar_spam(self, numero: str) -> bool:
+        conexao = None
+        try:
+            conexao = get_connection()
+            cursor = conexao.cursor()
+            cursor.execute(
+                "SELECT 1 FROM contatos WHERE numero = ? AND isspam = 1 LIMIT 1",
+                (numero,),
+            )
+            return cursor.fetchone() is not None
+        except sqlite3.Error:
+            logger.exception("Erro ao verificar spam")
+            return False
+        finally:
+            if conexao:
+                conexao.close()

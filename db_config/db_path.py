@@ -6,4 +6,5 @@ BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "rock_telefonia.db"
 
 def get_connection():
+    DB_PATH = BASE_DIR / "rock_telefonia.db"
     return sqlite3.connect(DB_PATH)
