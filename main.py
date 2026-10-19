@@ -1,17 +1,22 @@
 import logging
-import json
-
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, BackgroundTasks
+from tratamentos.ligacoes import tratar_chamada
+from tratamentos.mensagens import TratarMensagem
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+HANDLER = {
+    "Message": TratarMensagem.tratar,
+    "CallOffer": tratar_chamada,
+}
+
 
 @app.post("/evolution-webhook")
-async def evolution_webhook(request: Request):
+async def evolution_webhook(request: Request, background_tasks: BackgroundTasks):
     try:
         payload = await request.json()
     except Exception:
@@ -19,9 +24,13 @@ async def evolution_webhook(request: Request):
         return {"status": "ignored"}
 
     event_type = payload.get("event")
-    logger.info("Evento: %s", event_type)
-    logger.info("Payload:\n%s", json.dumps(payload, indent=2, ensure_ascii=False))
+    handler = HANDLER.get(event_type)
 
+    if handler is None:
+        logger.info("Evento ignorado: %s", event_type)
+        return {"status": "ignored"}
+
+    background_tasks.add_task(handler, payload)
     return {"status": "success"}
 
 
