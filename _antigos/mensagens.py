@@ -5,7 +5,6 @@ logger = logging.getLogger(__name__)
 
 PERMITIDOS: set[str] = set()
 
-
 class TratarMensagem:
 
     # dentro da classe
@@ -70,10 +69,3 @@ class TratarMensagem:
 
         logger.info("Mensagem passou no filtro: %s", message)
         return True
-
-    @staticmethod
-    def enviar_mensagem(phone: str, message: str) -> None:
-        """Simula o envio de uma mensagem para um número de telefone."""
-        numero = TratarMensagem.separar_numero(phone)
-        logger.info("Enviando mensagem para %s: %s", numero, message)
-        # Aqui entra sua lógica de disparo via Evolution API

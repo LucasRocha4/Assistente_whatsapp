@@ -2,7 +2,7 @@ import logging
 import sys
 from mcp.server.fastmcp import FastMCP
 from db_config.db_path import get_connection
-from tratamentos.trat_contatos import TratamentoContatos
+from tratamentos.contatos import TratamentoContatos
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger(__name__)
