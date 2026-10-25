@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -6,6 +7,7 @@ from fastapi import BackgroundTasks, FastAPI, Request
 
 from tratamentos import config
 from tratamentos.handlers import tratar_chamada, tratar_mensagem
+from tratamentos.historico import HistoricoConversas
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,6 +22,7 @@ HANDLER = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config.validar()  # falha cedo se faltar alguma chave no .env
+    await asyncio.to_thread(HistoricoConversas().inicializar)
     yield
 
 

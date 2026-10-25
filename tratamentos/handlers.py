@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from . import config, evolution, llm
 from .contatos import TratamentoContatos
 from .dedup import Dedup
+from .historico import HistoricoConversas
 from .numeros import conversa_individual, normalizar_numero
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ mensagens_vistas = Dedup(config.DEDUP_TTL_SEGUNDOS)
 chamadas_vistas = Dedup(config.DEDUP_TTL_SEGUNDOS)
 
 contatos = TratamentoContatos()
+historico = HistoricoConversas()
 
 
 # ---------------------------------------------------------------- utilidades
@@ -89,6 +91,17 @@ async def tratar_mensagem(payload: dict) -> None:
     info = data.get("Info") or {}
     chat = info.get("Chat") or ""
     msg_id = info.get("ID")
+    sender = info.get("Sender") or info.get("SenderAlt") or chat
+    conversa_id = str(chat)
+    remetente_id = str(sender)
+    logger.info(
+        "Mensagem recebida | id=%s chat=%s sender=%s senderAlt=%s fromMe=%r",
+        msg_id,
+        chat,
+        info.get("Sender"),
+        info.get("SenderAlt"),
+        info.get("IsFromMe"),
+    )
 
     # 1) descartes baratos
     if info.get("IsFromMe"):
@@ -135,6 +148,17 @@ async def tratar_mensagem(payload: dict) -> None:
         logger.info("Ignorada: sem texto útil")
         return
 
+    historico_anterior = await asyncio.to_thread(historico.listar, conversa_id)
+    await asyncio.to_thread(
+        historico.salvar,
+        conversa_id=conversa_id,
+        mensagem_id=str(msg_id),
+        remetente_id=remetente_id,
+        direcao="recebida",
+        mensagem=texto,
+        data_hora=momento.isoformat(),
+    )
+
     # 7) spam (consulta ao banco numa thread, para não travar o servidor)
     if await asyncio.to_thread(contatos.verificar_spam, numero):
         logger.info("Ignorada: %s marcado como spam", numero)
@@ -147,12 +171,22 @@ async def tratar_mensagem(payload: dict) -> None:
 
     # 9) LLM e envio
     logger.info("Processando mensagem de %s: %s", numero, texto)
-    resposta = await llm.responder(texto)
+    resposta = await llm.responder(texto, historico_anterior)
     if not resposta:
         logger.warning("Sem resposta da LLM para %s; nada enviado", numero)
         return
 
-    await evolution.enviar_mensagem(chat, resposta)
+    enviada = await evolution.enviar_mensagem(chat, resposta)
+    if enviada:
+        await asyncio.to_thread(
+            historico.salvar,
+            conversa_id=conversa_id,
+            mensagem_id=f"rock:{msg_id}",
+            remetente_id="rock",
+            direcao="enviada",
+            mensagem=resposta,
+            data_hora=datetime.now(timezone.utc).isoformat(),
+        )
 
 
 # ------------------------------------------------------------------- chamadas

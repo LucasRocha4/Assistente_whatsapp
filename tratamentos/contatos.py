@@ -22,7 +22,10 @@ class TratamentoContatos:
         try:
             conexao = get_connection()
             cursor = conexao.cursor()
-            cursor.execute("INSERT OR IGNORE INTO contatos (numero) VALUES (?)", (contato,))
+            cursor.execute(
+                "INSERT OR IGNORE INTO contatos (numero, nome) VALUES (?, ?)",
+                (contato, contato),
+            )
             conexao.commit()
             if cursor.rowcount == 0:
                 return {"sucesso": False, "criado": False, "mensagem": "contato já existe"}

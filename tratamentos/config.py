@@ -20,6 +20,14 @@ GLOBAL_API_KEY = os.getenv("GLOBAL_API_KEY")  # atender ligações
 # --- Gemini ---
 GEMINI_KEY = os.getenv("GEMINI_KEY")
 GEMINI_MODEL = os.getenv("MODELO", "gemini-3.1-flash-lite")
+MODELOS_FALLBACK = [
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro",
+    "gemini-1.0-pro",
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash",
+]
 MAX_ENTRADA = int(os.getenv("MAX_ENTRADA", 1000))  # caracteres da mensagem do usuário
 MAX_SAIDA = int(os.getenv("MAX_SAIDA", 500))  # tokens da resposta
 SYSTEM_PROMPT = os.getenv(
