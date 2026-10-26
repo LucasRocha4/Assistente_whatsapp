@@ -1,4 +1,3 @@
-"""Acesso ao banco de contatos (antigo trat_contatos.py)."""
 import logging
 import sqlite3
 
